@@ -1,0 +1,763 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vipul Darade</title>
+<meta name="description" content="Portfolio of Vipul Darade — data analytics, full-stack development, and project case studies.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* layout concept: fixed left rail of section "nodes" (a pipeline map) beside
+     a scrolling column of dataset-style panels; a canvas network drifts behind
+     everything, subtly denser near the section currently in view */
+  :root{
+    --bg:#f4f5f2;
+    --panel:#ffffff;
+    --panel-2:#eceee8;
+    --fg:#141a1f;
+    --muted:#5b6570;
+    --line:#d7dbd3;
+    --accent:#0f766e;
+    --accent-fg:#ffffff;
+    --accent-2:#b5642a;
+    --mono-tint:#eef0ea;
+    --shadow: 0 1px 2px rgba(20,26,31,.04), 0 8px 24px rgba(20,26,31,.06);
+    --radius: 14px;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0d1210;
+      --panel:#141b19;
+      --panel-2:#101613;
+      --fg:#e8ece7;
+      --muted:#8fa19a;
+      --line:#25322d;
+      --accent:#42e0c4;
+      --accent-fg:#06231d;
+      --accent-2:#f0a860;
+      --mono-tint:#111815;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 30px rgba(0,0,0,.35);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0d1210;
+    --panel:#141b19;
+    --panel-2:#101613;
+    --fg:#e8ece7;
+    --muted:#8fa19a;
+    --line:#25322d;
+    --accent:#42e0c4;
+    --accent-fg:#06231d;
+    --accent-2:#f0a860;
+    --mono-tint:#111815;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 30px rgba(0,0,0,.35);
+    color-scheme: dark;
+  }
+
+  *{box-sizing:border-box}
+  html,body{ margin:0; padding:0; }
+  body{
+    background:var(--bg);
+    color:var(--fg);
+    font-family:"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{ background:var(--accent); color:var(--accent-fg); }
+
+  h1,h2,h3{ font-family:"Fraunces", Georgia, serif; text-wrap:balance; letter-spacing:-.01em; margin:0; }
+  .mono{ font-family:"IBM Plex Mono", ui-monospace, monospace; }
+  a{ color:inherit; }
+  button{ font-family:inherit; }
+  img{ max-width:100%; }
+
+  #netbg{
+    position:fixed; inset:0; width:100%; height:100%;
+    z-index:0; pointer-events:none;
+  }
+
+  .shell{ position:relative; z-index:1; }
+
+  /* ---- top progress bar ---- */
+  .progress{
+    position:fixed; top:0; left:0; height:3px; width:0%;
+    background:linear-gradient(90deg, var(--accent), var(--accent-2));
+    z-index:50; transition:width .1s linear;
+  }
+
+  /* ---- side rail nav ---- */
+  .rail{
+    position:fixed; left:24px; top:50%; transform:translateY(-50%);
+    z-index:40; display:flex; flex-direction:column; gap:14px;
+  }
+  .rail button{
+    display:flex; align-items:center; gap:10px;
+    background:none; border:none; cursor:pointer; padding:4px 0;
+    color:var(--muted); text-align:left;
+  }
+  .rail .dot{
+    width:9px; height:9px; border-radius:50%;
+    border:2px solid var(--muted); background:transparent;
+    transition:all .25s ease; flex:none;
+  }
+  .rail .label{
+    font-family:"IBM Plex Mono", monospace; font-size:.72rem;
+    letter-spacing:.04em; opacity:0; transform:translateX(-6px);
+    transition:all .2s ease; white-space:nowrap;
+  }
+  .rail button:hover .label,
+  .rail button.active .label{ opacity:1; transform:translateX(0); color:var(--fg); }
+  .rail button.active .dot{ border-color:var(--accent); background:var(--accent); box-shadow:0 0 0 4px color-mix(in srgb, var(--accent) 20%, transparent); }
+  @media (max-width: 860px){ .rail{ display:none; } }
+
+  .theme-toggle{
+    position:fixed; top:18px; right:18px; z-index:40;
+    background:var(--panel); border:1px solid var(--line); box-shadow:var(--shadow);
+    color:var(--fg); border-radius:999px; width:42px; height:42px;
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    font-size:1.1rem;
+  }
+
+  main{ max-width:920px; margin:0 auto; padding:0 24px; }
+  section{ padding:100px 0; scroll-margin-top:40px; }
+  @media (max-width:860px){ section{ padding:72px 0; } main{ padding:0 20px 0 20px; } }
+
+  .eyebrow{
+    font-family:"IBM Plex Mono", monospace; font-size:.74rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); display:flex; align-items:center; gap:10px;
+    margin-bottom:14px;
+  }
+  .eyebrow::before{ content:""; width:22px; height:1px; background:var(--accent); display:inline-block; }
+
+  /* ---- reveal on scroll ---- */
+  .reveal{ opacity:0; transform:translateY(18px); transition:opacity .6s ease, transform .6s ease; }
+  .reveal.in{ opacity:1; transform:translateY(0); }
+  @media (prefers-reduced-motion: reduce){
+    .reveal{ opacity:1; transform:none; transition:none; }
+  }
+
+  /* ---- hero ---- */
+  #hero{ min-height:92vh; display:flex; flex-direction:column; justify-content:center; padding-top:60px; }
+  .hero-name{ font-size:clamp(2.6rem, 7vw, 4.6rem); font-weight:600; line-height:1.02; }
+  .hero-role{
+    font-family:"IBM Plex Mono", monospace; font-size:clamp(1rem,2.4vw,1.3rem);
+    color:var(--accent); margin-top:18px; min-height:1.6em; display:flex; align-items:center;
+  }
+  .hero-role .cursor{ display:inline-block; width:2px; height:1em; background:var(--accent); margin-left:2px; animation:blink 1s steps(1) infinite; }
+  @media (prefers-reduced-motion: reduce){ .hero-role .cursor{ animation:none; opacity:1; } }
+  @keyframes blink{ 50%{ opacity:0; } }
+  .hero-sub{ max-width:60ch; color:var(--muted); margin-top:22px; font-size:1.02rem; }
+  .hero-meta{ margin-top:28px; display:flex; flex-wrap:wrap; gap:10px; font-family:"IBM Plex Mono", monospace; font-size:.82rem; color:var(--muted); }
+  .hero-meta span{ background:var(--panel); border:1px solid var(--line); padding:6px 12px; border-radius:999px; }
+  .hero-cta{ margin-top:34px; display:flex; gap:14px; flex-wrap:wrap; }
+  .btn{
+    display:inline-flex; align-items:center; gap:8px; padding:12px 20px; border-radius:999px;
+    font-size:.92rem; font-weight:500; cursor:pointer; border:1px solid transparent; text-decoration:none;
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .btn:hover{ transform:translateY(-2px); }
+  .btn-solid{ background:var(--accent); color:var(--accent-fg); box-shadow:var(--shadow); }
+  .btn-ghost{ background:transparent; border-color:var(--line); color:var(--fg); }
+
+  /* ---- stat strip ---- */
+  .stats{ display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; margin-top:56px; }
+  .stat{ background:var(--panel); padding:22px 16px; text-align:center; }
+  .stat .num{ font-family:"Fraunces", serif; font-size:clamp(1.5rem,3vw,2.1rem); font-weight:600; color:var(--accent); }
+  .stat .cap{ font-family:"IBM Plex Mono", monospace; font-size:.68rem; color:var(--muted); letter-spacing:.04em; margin-top:4px; text-transform:uppercase; }
+  @media (max-width:640px){ .stats{ grid-template-columns:repeat(2,1fr); } }
+
+  /* ---- about ---- */
+  .about-grid{ display:grid; grid-template-columns:1.3fr .9fr; gap:40px; align-items:start; }
+  @media (max-width:760px){ .about-grid{ grid-template-columns:1fr; } }
+  .about-card{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:22px; box-shadow:var(--shadow); }
+  .about-card h3{ font-size:1rem; margin-bottom:10px; }
+  .chip-row{ display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+  .chip{ font-family:"IBM Plex Mono", monospace; font-size:.74rem; padding:5px 10px; border-radius:8px; background:var(--mono-tint); border:1px solid var(--line); color:var(--fg); }
+
+  /* ---- skills ---- */
+  .skill-groups{ display:grid; grid-template-columns:repeat(2,1fr); gap:18px; }
+  @media (max-width:700px){ .skill-groups{ grid-template-columns:1fr; } }
+  .skill-card{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:20px; }
+  .skill-card h3{ font-size:.98rem; display:flex; align-items:center; gap:8px; }
+  .skill-card .idx{ font-family:"IBM Plex Mono",monospace; color:var(--accent); font-size:.85rem; }
+
+  /* ---- timeline ---- */
+  .timeline{ position:relative; padding-left:28px; }
+  .timeline::before{ content:""; position:absolute; left:5px; top:6px; bottom:6px; width:2px; background:var(--line); }
+  .timeline .tl-fill{ position:absolute; left:5px; top:6px; width:2px; background:var(--accent); height:0%; transition:height .2s linear; }
+  .tl-item{ position:relative; margin-bottom:34px; }
+  .tl-item:last-child{ margin-bottom:0; }
+  .tl-dot{ position:absolute; left:-28px; top:4px; width:12px; height:12px; border-radius:50%; background:var(--panel); border:2px solid var(--accent); }
+  .tl-when{ font-family:"IBM Plex Mono", monospace; font-size:.74rem; color:var(--accent); text-transform:uppercase; letter-spacing:.05em; }
+  .tl-role{ font-size:1.15rem; margin-top:4px; font-weight:600; }
+  .tl-org{ color:var(--muted); font-size:.92rem; margin-bottom:8px; }
+  .tl-list{ margin:0; padding-left:18px; color:var(--fg); font-size:.94rem; }
+  .tl-list li{ margin-bottom:6px; }
+
+  /* ---- projects ---- */
+  .proj{ border:1px solid var(--line); border-radius:var(--radius); background:var(--panel); margin-bottom:14px; overflow:hidden; box-shadow:var(--shadow); }
+  .proj-head{ display:flex; align-items:center; justify-content:space-between; gap:16px; padding:18px 20px; cursor:pointer; }
+  .proj-head:hover{ background:var(--panel-2); }
+  .proj-title{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+  .proj-title h3{ font-size:1.05rem; }
+  .badge{ font-family:"IBM Plex Mono",monospace; font-size:.66rem; text-transform:uppercase; letter-spacing:.05em; background:var(--mono-tint); border:1px solid var(--line); padding:3px 8px; border-radius:6px; color:var(--accent); }
+  .proj-chevron{ transition:transform .25s ease; color:var(--muted); flex:none; }
+  .proj.open .proj-chevron{ transform:rotate(45deg); }
+  .proj-body{ max-height:0; overflow:hidden; transition:max-height .35s ease; }
+  .proj.open .proj-body{ max-height:600px; }
+  .proj-body-in{ padding:0 20px 20px; color:var(--fg); font-size:.94rem; }
+  .proj-body-in ul{ padding-left:18px; margin:10px 0; }
+  .proj-body-in li{ margin-bottom:6px; }
+  .proj-links{ display:flex; gap:10px; margin-top:10px; flex-wrap:wrap; }
+  .proj-links a{ font-family:"IBM Plex Mono",monospace; font-size:.78rem; text-decoration:underline; color:var(--accent); }
+
+  /* ---- education / certs ---- */
+  .edu-item, .cert-item{ display:flex; justify-content:space-between; gap:16px; padding:16px 0; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  .edu-item:last-child, .cert-item:last-child{ border-bottom:none; }
+  .edu-main strong{ font-size:1rem; }
+  .edu-sub{ color:var(--muted); font-size:.88rem; margin-top:2px; }
+  .edu-tag{ font-family:"IBM Plex Mono",monospace; font-size:.72rem; color:var(--accent-2); white-space:nowrap; align-self:center; }
+
+  /* ---- contact ---- */
+  .contact-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:14px; }
+  @media (max-width:640px){ .contact-grid{ grid-template-columns:1fr; } }
+  .contact-card{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:18px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .contact-card .k{ font-family:"IBM Plex Mono",monospace; font-size:.7rem; text-transform:uppercase; color:var(--muted); letter-spacing:.05em; }
+  .contact-card .v{ font-size:.98rem; margin-top:2px; word-break:break-word; }
+  .copy-btn{ flex:none; background:var(--mono-tint); border:1px solid var(--line); color:var(--fg); border-radius:8px; padding:8px 12px; font-size:.78rem; cursor:pointer; text-decoration:none; display:inline-block; }
+  .copy-btn.copied{ background:var(--accent); color:var(--accent-fg); border-color:var(--accent); }
+
+  footer{ text-align:center; padding:50px 0 70px; color:var(--muted); font-family:"IBM Plex Mono",monospace; font-size:.78rem; }
+</style>
+</head>
+<body>
+
+<canvas id="netbg"></canvas>
+<div class="progress" id="progress"></div>
+<button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">◐</button>
+
+<nav class="rail" id="rail">
+  <button data-target="hero"><span class="dot"></span><span class="label">// hero</span></button>
+  <button data-target="about"><span class="dot"></span><span class="label">// about</span></button>
+  <button data-target="skills"><span class="dot"></span><span class="label">// skills</span></button>
+  <button data-target="experience"><span class="dot"></span><span class="label">// experience</span></button>
+  <button data-target="projects"><span class="dot"></span><span class="label">// projects</span></button>
+  <button data-target="education"><span class="dot"></span><span class="label">// education</span></button>
+  <button data-target="contact"><span class="dot"></span><span class="label">// contact</span></button>
+</nav>
+
+<div class="shell">
+<main>
+
+  <section id="hero">
+    <div class="eyebrow reveal">Birmingham, UK</div>
+    <h1 class="hero-name reveal">Vipul Darade</h1>
+    <div class="hero-role reveal mono"><span id="roleText">Data Scientist</span><span class="cursor"></span></div>
+    <p class="hero-sub reveal">MSc Big Data Analytics graduate (Distinction, Birmingham City University) who builds things end‑to‑end &mdash; from a merged 50,000&#8209;row dataset to a model people can actually trust, and from a database schema to a shipped web feature.</p>
+    <div class="hero-meta reveal">
+      <span>MSc &middot; Distinction</span>
+      <span>Python &middot; React &middot; SQL</span>
+      <span>Everyday Claude Code user</span>
+    </div>
+    <div class="hero-cta reveal">
+      <a class="btn btn-solid" href="#projects">See the work</a>
+      <a class="btn btn-ghost" href="#contact">Get in touch</a>
+    </div>
+
+    <div class="stats reveal" id="statStrip">
+      <div class="stat"><div class="num" data-count="50000" data-suffix="+">0</div><div class="cap">records analysed</div></div>
+      <div class="stat"><div class="num" data-count="100" data-suffix="+">0</div><div class="cap">features engineered</div></div>
+      <div class="stat"><div class="num" data-decimal="1.61" data-suffix=" min">0</div><div class="cap">model MAE</div></div>
+      <div class="stat"><div class="num" data-text="Distinction">0</div><div class="cap">MSc &amp; BE class</div></div>
+    </div>
+  </section>
+
+  <section id="about">
+    <div class="eyebrow reveal">About</div>
+    <h2 class="reveal" style="font-size:clamp(1.6rem,3vw,2.1rem); margin-bottom:26px;">Analyst by training, builder by habit.</h2>
+    <div class="about-grid reveal">
+      <div>
+        <p>I hold a Level&nbsp;7 qualified MSc (equivalent to a Master's degree) in Big Data Analytics, awarded with Distinction, and I got there the same way I approach everything &mdash; by actually building the thing, not just reading about it. My dissertation merged three real&#8209;world data sources into one 50,000&#8209;record dataset, engineered over 100 features, and used SHAP to make an XGBoost model's reasoning legible to people who don't care about hyperparameters.</p>
+        <p>Before that, I built and shipped live web features as a Junior Web Developer &mdash; full MERN stack, RESTful APIs, and a Salesforce CRM keeping client data honest. I'm a genuine, everyday user of Claude Code and other AI tools, not because it's fashionable, but because it's how I actually get things done faster without cutting corners.</p>
+        <p>Outside of formal projects, I keep building: a personal Power BI project analysing UK housing prices, and time spent at a Google-hosted networking event and a Cognizant event in London, staying close to where the industry is heading.</p>
+      </div>
+      <div class="about-card">
+        <h3 class="mono">// quick facts</h3>
+        <div class="chip-row">
+          <span class="chip">Based in Birmingham, UK</span>
+          <span class="chip">UK driving licence</span>
+          <span class="chip">Open to relocation</span>
+          <span class="chip">MERN &amp; Python stack</span>
+          <span class="chip">SQL Server &middot; MySQL &middot; BigQuery</span>
+          <span class="chip">Published researcher (IJRASET)</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="skills">
+    <div class="eyebrow reveal">Skills</div>
+    <h2 class="reveal" style="font-size:clamp(1.6rem,3vw,2.1rem); margin-bottom:26px;">The stack, grouped by what it's for.</h2>
+    <div class="skill-groups reveal">
+      <div class="skill-card">
+        <h3><span class="idx">01</span> Languages &amp; Web</h3>
+        <div class="chip-row">
+          <span class="chip">JavaScript</span><span class="chip">Python</span><span class="chip">R</span>
+          <span class="chip">HTML &amp; CSS</span><span class="chip">React</span><span class="chip">Node.js</span>
+          <span class="chip">RESTful APIs</span>
+        </div>
+      </div>
+      <div class="skill-card">
+        <h3><span class="idx">02</span> Data &amp; Machine Learning</h3>
+        <div class="chip-row">
+          <span class="chip">XGBoost</span><span class="chip">SHAP explainability</span>
+          <span class="chip">Feature engineering</span><span class="chip">Model evaluation</span>
+          <span class="chip">PySpark / Databricks</span><span class="chip">Statistical analysis</span>
+        </div>
+      </div>
+      <div class="skill-card">
+        <h3><span class="idx">03</span> Databases &amp; Platforms</h3>
+        <div class="chip-row">
+          <span class="chip">SQL Server</span><span class="chip">MySQL</span><span class="chip">Google BigQuery</span>
+          <span class="chip">Oracle</span><span class="chip">Salesforce CRM</span><span class="chip">Azure (AZ&#8209;104)</span>
+        </div>
+      </div>
+      <div class="skill-card">
+        <h3><span class="idx">04</span> Practice &amp; Tooling</h3>
+        <div class="chip-row">
+          <span class="chip">Git &amp; GitHub Actions CI/CD</span><span class="chip">Debugging &amp; root-cause fixes</span>
+          <span class="chip">Stakeholder communication</span><span class="chip">Claude Code (daily use)</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="experience">
+    <div class="eyebrow reveal">Experience</div>
+    <h2 class="reveal" style="font-size:clamp(1.6rem,3vw,2.1rem); margin-bottom:34px;">Where the work has happened.</h2>
+    <div class="timeline reveal" id="timeline">
+      <div class="tl-fill" id="tlFill"></div>
+
+      <div class="tl-item">
+        <div class="tl-dot"></div>
+        <div class="tl-when">Feb 2023 &ndash; May 2023</div>
+        <div class="tl-role">Junior Web Developer</div>
+        <div class="tl-org">The Innovative Solutions</div>
+        <ul class="tl-list">
+          <li>Built and shipped live website features across the full stack using the MERN stack, including RESTful APIs connecting front-end and back-end.</li>
+          <li>Diagnosed defects through structured, methodical debugging and applied root-cause fixes rather than surface workarounds.</li>
+          <li>Used Salesforce CRM to manage client database records, and negotiated realistic timelines directly with clients.</li>
+        </ul>
+      </div>
+
+      <div class="tl-item">
+        <div class="tl-dot"></div>
+        <div class="tl-when">Mar 2026 &ndash; Jun 2026</div>
+        <div class="tl-role">Team Member</div>
+        <div class="tl-org">Burger King</div>
+        <ul class="tl-list">
+          <li>Delivered consistently accurate, high-volume order processing in a fast-paced environment while balancing MSc study.</li>
+        </ul>
+      </div>
+
+      <div class="tl-item">
+        <div class="tl-dot"></div>
+        <div class="tl-when">Jun 2026 &ndash; Present</div>
+        <div class="tl-role">Team Member</div>
+        <div class="tl-org">Bagel Factory</div>
+        <ul class="tl-list">
+          <li>Maintain high accuracy under pressure in a fast-paced, customer-facing environment, handling transactions and records with consistent precision.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="projects">
+    <div class="eyebrow reveal">Projects</div>
+    <h2 class="reveal" style="font-size:clamp(1.6rem,3vw,2.1rem); margin-bottom:30px;">Case studies, expanded.</h2>
+
+    <div class="reveal">
+      <div class="proj" data-open="true">
+        <div class="proj-head" onclick="toggleProj(this)">
+          <div class="proj-title"><h3>Predictive Analytics System</h3><span class="badge">MSc Dissertation &middot; Distinction</span></div>
+          <span class="proj-chevron mono">+</span>
+        </div>
+        <div class="proj-body">
+          <div class="proj-body-in">
+            <p>An end-to-end Python pipeline built to turn three separate real-world data sources into a single, trustworthy predictive model.</p>
+            <ul>
+              <li>Merged and cleaned ~50,000 records, engineering and validating over 100 features.</li>
+              <li>Trained and iteratively back-tested an XGBoost model, reaching a 1.61-minute mean absolute error.</li>
+              <li>Applied SHAP-based explainability to translate model behaviour into insight a non-technical audience could trust.</li>
+              <li>Used Git and GitHub Actions CI/CD to keep the codebase version-controlled and reproducible throughout.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="proj">
+        <div class="proj-head" onclick="toggleProj(this)">
+          <div class="proj-title"><h3>Real-Time Weapon Detection System</h3><span class="badge">B.E. Dissertation &middot; Published, IJRASET</span></div>
+          <span class="proj-chevron mono">+</span>
+        </div>
+        <div class="proj-body">
+          <div class="proj-body-in">
+            <p>A deep-learning-based object detection model (YOLO architecture) built to identify weapons in real-time CCTV footage &mdash; a public-safety use case taken from research concept through to a documented, peer-reviewed result.</p>
+            <ul>
+              <li>Published in IJRASET, a UGC-approved peer-reviewed journal.</li>
+              <li>Focused on real-time inference constraints, not just offline accuracy.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="proj">
+        <div class="proj-head" onclick="toggleProj(this)">
+          <div class="proj-title"><h3>Blog-web</h3><span class="badge">Full-stack MERN app</span></div>
+          <span class="proj-chevron mono">+</span>
+        </div>
+        <div class="proj-body">
+          <div class="proj-body-in">
+            <p>A full-stack blogging platform built on MongoDB, Express, React and Node, covering authentication, content creation and a REST API layer connecting the two ends.</p>
+            <div class="proj-links"><a href="https://github.com/vipuldarade1" target="_blank" rel="noopener">View on GitHub &rarr;</a></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="proj">
+        <div class="proj-head" onclick="toggleProj(this)">
+          <div class="proj-title"><h3>movies-web</h3><span class="badge">React SPA &middot; TMDB API</span></div>
+          <span class="proj-chevron mono">+</span>
+        </div>
+        <div class="proj-body">
+          <div class="proj-body-in">
+            <p>A single-page React application consuming the TMDB API to browse and search films &mdash; component-driven state, routing and external API integration.</p>
+            <div class="proj-links"><a href="https://github.com/vipuldarade1" target="_blank" rel="noopener">View on GitHub &rarr;</a></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="proj">
+        <div class="proj-head" onclick="toggleProj(this)">
+          <div class="proj-title"><h3>Cricket-website</h3><span class="badge">Vanilla JavaScript</span></div>
+          <span class="proj-chevron mono">+</span>
+        </div>
+        <div class="proj-body">
+          <div class="proj-body-in">
+            <p>A team-management app for cricket sides, built without a framework to keep the fundamentals of DOM manipulation and state handling sharp.</p>
+            <div class="proj-links"><a href="https://github.com/vipuldarade1" target="_blank" rel="noopener">View on GitHub &rarr;</a></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="proj">
+        <div class="proj-head" onclick="toggleProj(this)">
+          <div class="proj-title"><h3>UK Housing Price Analysis</h3><span class="badge">Personal Power BI project</span></div>
+          <span class="proj-chevron mono">+</span>
+        </div>
+        <div class="proj-body">
+          <div class="proj-body-in">
+            <p>A self-directed project analysing UK housing price data in Power BI, built in my own time to keep BI-tool skills current alongside the more code-heavy dissertation work.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="education">
+    <div class="eyebrow reveal">Education &amp; Certifications</div>
+    <h2 class="reveal" style="font-size:clamp(1.6rem,3vw,2.1rem); margin-bottom:26px;">Credentials.</h2>
+    <div class="reveal">
+      <div class="edu-item">
+        <div class="edu-main"><strong>MSc Big Data Analytics</strong><div class="edu-sub">Birmingham City University, UK &middot; 2026</div></div>
+        <div class="edu-tag">Distinction</div>
+      </div>
+      <div class="edu-item">
+        <div class="edu-main"><strong>B.E. Information Technology</strong><div class="edu-sub">Savitribai Phule Pune University &middot; 2024</div></div>
+        <div class="edu-tag">First Class w/ Distinction</div>
+      </div>
+      <div class="edu-item">
+        <div class="edu-main"><strong>Diploma in Computer Technology</strong><div class="edu-sub">Maharashtra State Board of Technical Education, Nashik &middot; 2018&ndash;2021</div></div>
+        <div class="edu-tag">86.23% &middot; Distinction</div>
+      </div>
+    </div>
+    <div class="reveal" style="margin-top:26px;">
+      <div class="cert-item"><div class="edu-main"><strong>Microsoft Certified: Azure Administrator Associate</strong></div></div>
+      <div class="cert-item"><div class="edu-main"><strong>MERN Stack Developer Certification</strong><div class="edu-sub">Edyoda Digital University</div></div></div>
+      <div class="cert-item"><div class="edu-main"><strong>Data Science Job Simulation</strong><div class="edu-sub">British Airways &middot; Forage</div></div></div>
+      <div class="cert-item"><div class="edu-main"><strong>Data Science Job Simulation</strong><div class="edu-sub">BCG &middot; Forage</div></div></div>
+    </div>
+  </section>
+
+  <section id="contact">
+    <div class="eyebrow reveal">Contact</div>
+    <h2 class="reveal" style="font-size:clamp(1.6rem,3vw,2.1rem); margin-bottom:26px;">Let's talk.</h2>
+    <div class="contact-grid reveal">
+      <div class="contact-card">
+        <div><div class="k">Email</div><div class="v mono">vipuldarade77@gmail.com</div></div>
+        <button class="copy-btn" onclick="copyText(this,'vipuldarade77@gmail.com')">Copy</button>
+      </div>
+      <div class="contact-card">
+        <div><div class="k">Phone</div><div class="v mono">+44 7554 539849</div></div>
+        <button class="copy-btn" onclick="copyText(this,'+44 7554 539849')">Copy</button>
+      </div>
+      <div class="contact-card">
+        <div><div class="k">LinkedIn</div><div class="v">linkedin.com/in/vipul-darade</div></div>
+        <a class="copy-btn" href="https://www.linkedin.com/in/vipul-darade/" target="_blank" rel="noopener">Open</a>
+      </div>
+      <div class="contact-card">
+        <div><div class="k">GitHub</div><div class="v">github.com/vipuldarade1</div></div>
+        <a class="copy-btn" href="https://github.com/vipuldarade1" target="_blank" rel="noopener">Open</a>
+      </div>
+    </div>
+  </section>
+
+  <footer>Vipul Darade &middot; Birmingham, UK</footer>
+</main>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---------- theme toggle ---------- */
+  var root = document.documentElement;
+  var toggle = document.getElementById('themeToggle');
+  function currentTheme(){
+    var a = root.getAttribute('data-theme');
+    if(a) return a;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  toggle.addEventListener('click', function(){
+    var next = currentTheme() === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+  });
+
+  /* ---------- progress bar ---------- */
+  var progress = document.getElementById('progress');
+  function updateProgress(){
+    var h = document.documentElement;
+    var scrolled = h.scrollTop || document.body.scrollTop;
+    var max = (h.scrollHeight || document.body.scrollHeight) - h.clientHeight;
+    var pct = max > 0 ? (scrolled / max) * 100 : 0;
+    progress.style.width = pct + '%';
+  }
+  document.addEventListener('scroll', updateProgress, { passive:true });
+  updateProgress();
+
+  /* ---------- side rail active state + smooth scroll ---------- */
+  var railButtons = Array.prototype.slice.call(document.querySelectorAll('#rail button'));
+  railButtons.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var target = document.getElementById(btn.getAttribute('data-target'));
+      if(target) target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block:'start' });
+    });
+  });
+  var sections = railButtons.map(function(b){ return document.getElementById(b.getAttribute('data-target')); }).filter(Boolean);
+  var railObserver = new IntersectionObserver(function(entries){
+    entries.forEach(function(entry){
+      if(entry.isIntersecting){
+        var id = entry.target.id;
+        railButtons.forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-target') === id); });
+      }
+    });
+  }, { rootMargin: '-45% 0px -45% 0px', threshold: 0 });
+  sections.forEach(function(s){ railObserver.observe(s); });
+
+  /* ---------- reveal on scroll ---------- */
+  var revealObserver = new IntersectionObserver(function(entries){
+    entries.forEach(function(entry){
+      if(entry.isIntersecting){ entry.target.classList.add('in'); revealObserver.unobserve(entry.target); }
+    });
+  }, { threshold: 0.14 });
+  document.querySelectorAll('.reveal').forEach(function(el){ revealObserver.observe(el); });
+
+  /* ---------- animated hero role text ---------- */
+  var roles = ["Data Scientist", "Full-Stack Developer", "ML Engineer", "Big Data Analyst"];
+  var roleEl = document.getElementById('roleText');
+  if(reduceMotion){
+    roleEl.textContent = roles[0];
+  } else {
+    var ri = 0, ci = roles[0].length, deleting = false;
+    function tick(){
+      var word = roles[ri];
+      if(!deleting){
+        ci++;
+        if(ci > word.length){ deleting = true; setTimeout(tick, 1400); return; }
+      } else {
+        ci--;
+        if(ci < 0){ deleting = false; ri = (ri+1) % roles.length; ci = 0; }
+      }
+      roleEl.textContent = roles[ri].slice(0, Math.max(ci,0)) || roles[ri][0];
+      setTimeout(tick, deleting ? 40 : 85);
+    }
+    roleEl.textContent = roles[0];
+    setTimeout(tick, 1600);
+  }
+
+  /* ---------- animated counters ---------- */
+  function animateCount(el){
+    var target = el.getAttribute('data-count');
+    var decimal = el.getAttribute('data-decimal');
+    var text = el.getAttribute('data-text');
+    var suffix = el.getAttribute('data-suffix') || '';
+    if(text){ el.textContent = text; return; }
+    var end = decimal ? parseFloat(decimal) : parseInt(target, 10);
+    if(reduceMotion){ el.textContent = (decimal ? end.toFixed(2) : end) + suffix; return; }
+    var start = 0, duration = 1200, startTime = null;
+    function step(ts){
+      if(!startTime) startTime = ts;
+      var progressT = Math.min((ts - startTime) / duration, 1);
+      var eased = 1 - Math.pow(1 - progressT, 3);
+      var val = start + (end - start) * eased;
+      el.textContent = (decimal ? val.toFixed(2) : Math.round(val)) + suffix;
+      if(progressT < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+  var statObserver = new IntersectionObserver(function(entries){
+    entries.forEach(function(entry){
+      if(entry.isIntersecting){
+        entry.target.querySelectorAll('.num').forEach(animateCount);
+        statObserver.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.4 });
+  var statStrip = document.getElementById('statStrip');
+  if(statStrip) statObserver.observe(statStrip);
+
+  /* ---------- timeline fill ---------- */
+  var tl = document.getElementById('timeline');
+  var tlFill = document.getElementById('tlFill');
+  function updateTlFill(){
+    if(!tl || !tlFill) return;
+    var rect = tl.getBoundingClientRect();
+    var vh = window.innerHeight;
+    var visibleTop = Math.min(Math.max(vh * 0.7 - rect.top, 0), rect.height);
+    tlFill.style.height = (visibleTop / rect.height * 100) + '%';
+  }
+  document.addEventListener('scroll', updateTlFill, { passive:true });
+  window.addEventListener('resize', updateTlFill);
+  updateTlFill();
+
+  /* ---------- project accordion ---------- */
+  window.toggleProj = function(headEl){
+    var proj = headEl.closest('.proj');
+    var wasOpen = proj.classList.contains('open');
+    document.querySelectorAll('.proj.open').forEach(function(p){ p.classList.remove('open'); });
+    if(!wasOpen) proj.classList.add('open');
+  };
+  var firstProj = document.querySelector('.proj[data-open="true"]');
+  if(firstProj) firstProj.classList.add('open');
+
+  /* ---------- copy to clipboard ---------- */
+  window.copyText = function(btn, text){
+    function done(){
+      var original = btn.textContent;
+      btn.textContent = 'Copied';
+      btn.classList.add('copied');
+      setTimeout(function(){ btn.textContent = original; btn.classList.remove('copied'); }, 1500);
+    }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(done).catch(function(){
+        fallbackCopy(text); done();
+      });
+    } else {
+      fallbackCopy(text); done();
+    }
+  };
+  function fallbackCopy(text){
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); }catch(e){}
+    document.body.removeChild(ta);
+  }
+
+  /* ---------- canvas data-network background ---------- */
+  var canvas = document.getElementById('netbg');
+  var ctx = canvas.getContext('2d');
+  var W, H, nodes = [];
+  var NODE_COUNT = 46;
+  var mouse = { x:-9999, y:-9999 };
+
+  function resize(){
+    W = canvas.width = window.innerWidth * devicePixelRatio;
+    H = canvas.height = window.innerHeight * devicePixelRatio;
+    canvas.style.width = window.innerWidth + 'px';
+    canvas.style.height = window.innerHeight + 'px';
+  }
+  function accentColor(){
+    return getComputedStyle(root).getPropertyValue('--accent').trim() || '#42e0c4';
+  }
+  function makeNodes(){
+    nodes = [];
+    for(var i=0;i<NODE_COUNT;i++){
+      nodes.push({
+        x: Math.random()*W, y: Math.random()*H,
+        vx: (Math.random()-0.5)*0.18*devicePixelRatio,
+        vy: (Math.random()-0.5)*0.18*devicePixelRatio,
+        r: (Math.random()*1.6+0.8)*devicePixelRatio
+      });
+    }
+  }
+  function hexToRgb(hex){
+    hex = hex.replace('#','');
+    if(hex.length===3) hex = hex.split('').map(function(c){return c+c;}).join('');
+    var num = parseInt(hex,16);
+    return [ (num>>16)&255, (num>>8)&255, num&255 ];
+  }
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    var rgb = hexToRgb(accentColor().startsWith('#') ? accentColor() : '#42e0c4');
+    var maxDist = 150 * devicePixelRatio;
+    for(var i=0;i<nodes.length;i++){
+      var n = nodes[i];
+      n.x += n.vx; n.y += n.vy;
+      if(n.x < 0 || n.x > W) n.vx *= -1;
+      if(n.y < 0 || n.y > H) n.vy *= -1;
+      for(var j=i+1;j<nodes.length;j++){
+        var m = nodes[j];
+        var dx = n.x-m.x, dy = n.y-m.y;
+        var dist = Math.sqrt(dx*dx+dy*dy);
+        if(dist < maxDist){
+          var alpha = (1 - dist/maxDist) * 0.16;
+          ctx.strokeStyle = 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',' + alpha + ')';
+          ctx.lineWidth = devicePixelRatio;
+          ctx.beginPath(); ctx.moveTo(n.x,n.y); ctx.lineTo(m.x,m.y); ctx.stroke();
+        }
+      }
+      var mdx = n.x-mouse.x, mdy = n.y-mouse.y;
+      var mdist = Math.sqrt(mdx*mdx+mdy*mdy);
+      if(mdist < maxDist*1.3){
+        var malpha = (1 - mdist/(maxDist*1.3)) * 0.28;
+        ctx.strokeStyle = 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',' + malpha + ')';
+        ctx.lineWidth = devicePixelRatio;
+        ctx.beginPath(); ctx.moveTo(n.x,n.y); ctx.lineTo(mouse.x,mouse.y); ctx.stroke();
+      }
+      ctx.fillStyle = 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',0.55)';
+      ctx.beginPath(); ctx.arc(n.x,n.y,n.r,0,Math.PI*2); ctx.fill();
+    }
+  }
+  var rafId;
+  function loop(){ draw(); rafId = requestAnimationFrame(loop); }
+
+  window.addEventListener('resize', function(){ resize(); makeNodes(); });
+  window.addEventListener('mousemove', function(e){ mouse.x = e.clientX*devicePixelRatio; mouse.y = e.clientY*devicePixelRatio; });
+  window.addEventListener('mouseleave', function(){ mouse.x=-9999; mouse.y=-9999; });
+
+  resize(); makeNodes();
+  if(reduceMotion){
+    draw();
+  } else {
+    loop();
+  }
+})();
+</script>
+</body>
+</html>
